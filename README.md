@@ -59,7 +59,7 @@ Developer → GitHub → Jenkins CI → Security Scans → Docker → ArgoCD →
 
 ---
 
-## 1️⃣ Jenkins Master Setup
+## 1 Jenkins Master Setup
 
 Create EC2:
 
@@ -70,93 +70,99 @@ Create EC2:
 
 Install Docker:
 
-```bash
-sudo apt update
-sudo apt install docker.io -y
-sudo usermod -aG docker ubuntu && newgrp docker
+sudo apt update  
+sudo apt install docker.io -y  
+sudo usermod -aG docker ubuntu && newgrp docker  
+
 Install Jenkins:
 
-sudo apt install fontconfig openjdk-17-jre -y
+sudo apt install fontconfig openjdk-17-jre -y  
 
-wget -O /usr/share/keyrings/jenkins-keyring.asc https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key
+wget -O /usr/share/keyrings/jenkins-keyring.asc https://pkg.jenkins.io/debian-stable/jenkins.io-2023.key  
 
-echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" | sudo tee /etc/apt/sources.list.d/jenkins.list
+echo "deb [signed-by=/usr/share/keyrings/jenkins-keyring.asc] https://pkg.jenkins.io/debian-stable binary/" | sudo tee /etc/apt/sources.list.d/jenkins.list  
 
-sudo apt update
-sudo apt install jenkins -y
+sudo apt update  
+sudo apt install jenkins -y  
 
-
-Access:
+Access Jenkins:
 
 http://<jenkins-master-ip>:8080
 
-2️⃣ Jenkins Worker Setup
+---
+
+## 2 Jenkins Worker Setup
 
 Create second EC2 (same config).
 
 Install Java + Docker:
 
-sudo apt install openjdk-17-jre docker.io -y
-
+sudo apt install openjdk-17-jre docker.io -y  
 
 Generate SSH keys from master:
 
-ssh-keygen
+ssh-keygen  
 
+Copy public key to worker:
 
-Add public key to worker:
+~/.ssh/authorized_keys  
 
-~/.ssh/authorized_keys
-
-
-Add node:
+Add Node:
 
 Manage Jenkins → Nodes → Add Node
 
-3️⃣ Install Jenkins Plugins
+---
+
+## 3 Jenkins Plugins
+
+Install from:
+
 Manage Jenkins → Plugins
 
+- OWASP Dependency Check
+- SonarQube Scanner
+- Docker
+- Pipeline Stage View
 
-Install:
+---
 
-OWASP Dependency Check
+## 4 SonarQube Setup
 
-SonarQube Scanner
-
-Docker
-
-Pipeline Stage View
-
-4️⃣ SonarQube Setup
-
-On Jenkins Master:
-
-docker run -d --name sonarqube -p 9000:9000 sonarqube:lts-community
-
+docker run -d --name sonarqube -p 9000:9000 sonarqube:lts-community  
 
 Create Token:
 
-Administration → Security → Users → Token
+Administration → Security → Users → Token  
 
+Add token in Jenkins Credentials.
 
-Add token to Jenkins Credentials.
-
-Configure Sonar:
+Configure:
 
 Manage Jenkins → System → SonarQube
 
-5️⃣ Trivy Setup (Worker)
-sudo apt install trivy -y
+---
 
-6️⃣ OWASP Setup
+## 5 Trivy Setup (Worker)
+
+sudo apt install trivy -y  
+
+---
+
+## 6 OWASP Setup
+
 Manage Jenkins → Tools → Dependency Check
 
-7️⃣ Docker Permission Fix
-chmod 777 /var/run/docker.sock
+---
 
-8️⃣ Email Notification
+## 7 Docker Permission
 
-Open port 465 on Jenkins Master.
+chmod 777 /var/run/docker.sock  
+
+---
+
+## 8 Email Notification
+
+Open port 465.
 
 Create Gmail App Password.
 
@@ -164,93 +170,83 @@ Configure:
 
 Manage Jenkins → System → Email Notification
 
-☸ Phase 2 – AWS EKS Setup
+---
+
+# ☸ Phase 2 – AWS EKS Setup
 
 Install AWS CLI:
 
-curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip
-unzip awscliv2.zip
-sudo ./aws/install
-aws configure
-
-
-Install kubectl & eksctl.
+curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o awscliv2.zip  
+unzip awscliv2.zip  
+sudo ./aws/install  
+aws configure  
 
 Create Cluster:
 
-eksctl create cluster --name=wanderlust --region=us-east-2 --version=1.30 --without-nodegroup
-
+eksctl create cluster --name=wanderlust --region=us-east-2 --version=1.30 --without-nodegroup  
 
 OIDC:
 
-eksctl utils associate-iam-oidc-provider --cluster wanderlust --region us-east-2 --approve
-
+eksctl utils associate-iam-oidc-provider --cluster wanderlust --region us-east-2 --approve  
 
 Nodegroup:
 
-eksctl create nodegroup --cluster=wanderlust \
---name=wanderlust \
---node-type=t2.large \
---nodes=2
+eksctl create nodegroup --cluster=wanderlust --name=wanderlust --node-type=t2.large --nodes=2  
 
-🚀 Phase 3 – GitOps Deployment (ArgoCD)
-kubectl create namespace argocd
+---
 
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+# 🚀 Phase 3 – GitOps Deployment (ArgoCD)
 
+kubectl create namespace argocd  
+
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml  
 
 Expose:
 
-kubectl patch svc argocd-server -n argocd -p '{"spec":{"type":"NodePort"}}'
-
-
-Password:
-
-kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
-
-
-Add cluster:
-
-argocd cluster add <cluster-context>
-
-
-Create Application from UI.
-
-Enable Auto Sync.
-
-📊 Phase 4 – Monitoring (Helm)
-helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
-kubectl create namespace prometheus
-helm install monitoring prometheus-community/kube-prometheus-stack -n prometheus
-
-
-Expose Grafana & Prometheus.
+kubectl patch svc argocd-server -n argocd -p '{"spec":{"type":"NodePort"}}'  
 
 Password:
 
-kubectl get secret -n prometheus monitoring-grafana -o jsonpath="{.data.admin-password}" | base64 --decode
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d  
 
-🔁 CI/CD Flow
+Add Cluster:
 
-Git Push
+argocd cluster add <cluster-context>  
 
-Jenkins Trigger
+Create Application from UI and enable Auto Sync.
 
-OWASP Scan
+---
 
-SonarQube
+# 📊 Phase 4 – Monitoring
 
-Docker Build
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts  
+kubectl create namespace prometheus  
+helm install monitoring prometheus-community/kube-prometheus-stack -n prometheus  
 
-Trivy Scan
+Grafana Password:
 
-Push Image
+kubectl get secret -n prometheus monitoring-grafana -o jsonpath="{.data.admin-password}" | base64 --decode  
 
-Update Manifest
+---
 
-ArgoCD Deploy
+# 🔁 CI/CD Flow
 
-Email Notification
+1 Git Push  
+2 Jenkins Trigger  
+3 OWASP Scan  
+4 SonarQube  
+5 Docker Build  
+6 Trivy Scan  
+7 Push Image  
+8 Update Manifest  
+9 ArgoCD Deploy  
+10 Email Notification  
 
-🧹 Cleanup
-eksctl delete cluster --name wanderlust --region us-east-2
+---
+
+# 🧹 Cleanup
+
+eksctl delete cluster --name wanderlust --region us-east-2  
+
+---
+
