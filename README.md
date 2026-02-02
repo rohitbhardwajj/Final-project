@@ -1,4 +1,4 @@
-DevSecOps CI/CD Pipeline with Kubernetes & Argocd Deployment
+<h1>DevSecOps CI/CD Pipeline with Kubernetes & Argocd Deployment</h1>
 
 It is a production-ready MERN travel blog application deployed on AWS EKS with a full DevSecOps CI/CD pipeline.  
 This project demonstrates real-world cloud-native DevOps and security practices, including continuous integration, GitOps-based deployment, containerization, and monitoring.
